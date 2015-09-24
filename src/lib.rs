@@ -17,9 +17,20 @@ enum DiffComponent<T> {
     Deletion(T)
 }
 
-fn common_unique_elements<'a, T: Eq + Hash + Debug>(a: &'a [T], b: &'a [T]) -> &'a [T] {
-    println!("{:?}", unique_elements(a));
-    a
+fn patience_diff<'a, T>(a: &'a [T], b: &'a [T]) -> Vec<DiffComponent<&'a T>> {
+    let a: Vec<_> = a.iter().enumerate().map(|(i, val)| Indexed(i, val)).collect();
+    let b: Vec<_> = b.iter().enumerate().map(|(i, val)| Indexed(i, val)).collect();
+
+    vec![]
+}
+
+fn common_unique_elements<'a, T: Eq + Hash + Debug>(a: &'a [T], b: &'a [T]) -> Vec<&'a T> {
+    let uniq_a = unique_elements(a);
+    let uniq_b = unique_elements(b);
+
+    uniq_a.into_iter()
+        .filter(|elem| uniq_b.contains(elem))
+        .collect()
 }
 
 fn unique_elements<'a, T: Eq + Hash>(elems: &'a [T]) -> Vec<&'a T> {
@@ -41,11 +52,9 @@ fn unique_elements<'a, T: Eq + Hash>(elems: &'a [T]) -> Vec<&'a T> {
         .collect()
 }
 
-fn patience_diff<'a, T>(a: &'a [T], b: &'a [T]) -> Vec<DiffComponent<&'a T>> {
-    let a: Vec<_> = a.iter().enumerate().map(|(i, val)| Indexed(i, val)).collect();
-    let b: Vec<_> = b.iter().enumerate().map(|(i, val)| Indexed(i, val)).collect();
-
-    vec![]
+#[test]
+fn test_common_unique_elements() {
+    assert_eq!(vec![&1, &2, &3], common_unique_elements(&[1, 2, 3, 4], &[1, 2, 3, 4, 4, 5]));
 }
 
 #[test]
