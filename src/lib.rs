@@ -43,6 +43,24 @@ pub fn patience_diff<'a, T>(a: &'a [T], b: &'a [T]) -> Vec<DiffComponent<&'a T>>
         return a.iter().map(DiffComponent::Deletion).collect();
     }
 
+    let mut common_prefix = common_prefix(a.iter(), b.iter());
+    if !common_prefix.is_empty() {
+        let rest_a = &a[common_prefix.len()..];
+        let rest_b = &b[common_prefix.len()..];
+        common_prefix.extend(patience_diff(rest_a, rest_b));
+        return common_prefix;
+    }
+
+    let common_suffix = common_suffix(a.iter(), b.iter());
+    if !common_suffix.is_empty() {
+        let prev_a = &a[..a.len() - common_suffix.len()];
+        let prev_b = &b[..b.len() - common_suffix.len()];
+        let mut prev_diff = patience_diff(prev_a, prev_b);
+        prev_diff.extend(common_suffix);
+
+        return prev_diff;
+    }
+
     let indexed_a: Vec<_> = a.iter()
         .enumerate()
         .map(|(i, val)| Indexed { index: i, value: val })
@@ -98,6 +116,19 @@ pub fn patience_diff<'a, T>(a: &'a [T], b: &'a [T]) -> Vec<DiffComponent<&'a T>>
     ret
 }
 
+fn common_prefix<'a, T, I>(a: I, b: I) -> Vec<DiffComponent<I::Item>>
+        where I: Iterator<Item = &'a T>, T: Eq {
+    a.zip(b)
+        .take_while(|&(elem_a, elem_b)| elem_a == elem_b)
+        .map(|(elem_a, elem_b)| DiffComponent::Unchanged(elem_a, elem_b))
+        .collect()
+}
+
+fn common_suffix<'a, T, I>(a: I, b: I) -> Vec<DiffComponent<I::Item>>
+        where I: DoubleEndedIterator<Item = &'a T>, T: Eq {
+    common_prefix(a.rev(), b.rev())
+}
+
 fn unique_elements<'a, T: Eq + Hash>(elems: &'a [T]) -> Vec<&'a T> {
     let mut counts: HashMap<&T, usize> = HashMap::new();
 
@@ -131,49 +162,20 @@ fn test_patience_diff() {
         DiffComponent::Insertion(&'a'),
     ]);
 
-    let a = vec![
-        "int func1() {",
-        "  return 1;",
-        "}",
-        "",
-        "int func2() {",
-        "  return 2;",
-        "}"
-    ];
+    let a = vec![1, 10, 11, 4];
+    let b = vec![1, 10, 11, 2, 3, 10, 11, 4];
 
-    let b = vec![
-        "int func1() {",
-        "  return 1;",
-        "}",
-        "",
-        "int func_new() {",
-        "  return 0;",
-        "}",
-        "",
-        "int func2() {",
-        "  return 2;",
-        "}"
-    ];
-
-    println!("");
-    for x in &a { println!("{}", x); }
-    println!("---");
-    for x in &b { println!("{}", x); }
-    println!("---");
-
-    let table = lcs::LcsTable::new(&a, &b);
-    for c in table.diff() {
-        println!("{:?}", c);
-    }
-
-    println!("---");
-    println!("patience");
-
-    for c in patience_diff(&a, &b) {
-        println!("{:?}", c);
-    }
-
-    panic!();
+    let diff = patience_diff(&a, &b);
+    assert_eq!(diff, vec![
+        DiffComponent::Unchanged(&1, &1),
+        DiffComponent::Unchanged(&10, &10),
+        DiffComponent::Unchanged(&11, &11),
+        DiffComponent::Insertion(&2),
+        DiffComponent::Insertion(&3),
+        DiffComponent::Insertion(&10),
+        DiffComponent::Insertion(&11),
+        DiffComponent::Unchanged(&4, &4)
+    ]);
 }
 
 #[test]
