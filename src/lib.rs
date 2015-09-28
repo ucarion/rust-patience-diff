@@ -1,47 +1,103 @@
+extern crate lcs;
+
 use std::collections::hash_map::{HashMap, Entry};
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::fmt::Debug;
 
-#[derive(Debug, Eq, Hash)]
-struct Indexed<T>(usize, T);
+#[derive(Debug, Eq)]
+struct Indexed<T> {
+    index: usize,
+    value: T
+}
 
-impl<T> PartialEq for Indexed<T> where T: Eq {
+impl<T> PartialEq for Indexed<T> where T: PartialEq {
     fn eq(&self, other: &Indexed<T>) -> bool {
-        self.1 == other.1
+        self.value == other.value
     }
 }
 
-enum DiffComponent<T> {
+impl<T> Hash for Indexed<T> where T: Hash {
+    fn hash<H>(&self, state: &mut H) where H: Hasher {
+        self.value.hash(state);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DiffComponent<T> {
     Insertion(T),
     Unchanged(T, T),
     Deletion(T)
 }
 
-fn patience_diff<'a, T>(a: &'a [T], b: &'a [T]) -> Vec<DiffComponent<&'a T>>
-        where T: Eq + Hash {
-    let a: Vec<_> = a.iter().enumerate().map(|(i, val)| Indexed(i, val)).collect();
-    let b: Vec<_> = b.iter().enumerate().map(|(i, val)| Indexed(i, val)).collect();
+pub fn patience_diff<'a, T>(a: &'a [T], b: &'a [T]) -> Vec<DiffComponent<&'a T>>
+        where T: Eq + Hash + Debug {
+    // convert to indexed-lists
+    // run core algo on total list
+    // convert result into its proper type if necessary
+    let a: Vec<_> = a.into_iter()
+        .enumerate()
+        .map(|(i, val)| Indexed { index: i, value: val })
+        .collect();
+    let b: Vec<_> = b.into_iter()
+        .enumerate()
+        .map(|(i, val)| Indexed { index: i, value: val })
+        .collect();
 
-    let common_unique_elems = common_unique_elements(&a, &b);
-
-    vec![]
+    diff(&a, &b)
 }
 
-fn common_unique_elements<'a, T: Eq + Hash>(a: &'a [T], b: &'a [T]) -> Vec<(&'a T, &'a T)> {
-    let uniq_a = unique_elements(a);
-    let uniq_b = unique_elements(b);
-
-    let mut out = Vec::new();
-
-    for elem_a in &uniq_a {
-        for elem_b in &uniq_b {
-            if elem_a == elem_b {
-                out.push((*elem_a, *elem_b));
-            }
-        }
+fn diff<'a, 'b, T>(a: &'b [Indexed<&'a T>], b: &'b [Indexed<&'a T>]) -> Vec<DiffComponent<&'a T>>
+        where T: Eq + Hash + Debug {
+    if a.len() == 0 && b.len() == 0 {
+        return vec![];
     }
 
-    out
+    if a.len() == 0 {
+        return b.iter().map(|elem| DiffComponent::Insertion(elem.value)).collect();
+    }
+
+    if b.len() == 0 {
+        return a.iter().map(|elem| DiffComponent::Deletion(elem.value)).collect();
+    }
+
+    let uniq_a = unique_elements(&a);
+    let uniq_b = unique_elements(&b);
+
+    let table = lcs::LcsTable::new(&uniq_a, &uniq_b);
+    let lcs = table.longest_common_subsequence();
+
+    if lcs.is_empty() {
+        let b: Vec<_> = table.diff().iter().map(|c| {
+            match *c {
+                lcs::DiffComponent::Insertion(i) => DiffComponent::Insertion(i.value),
+                lcs::DiffComponent::Unchanged(a, b) => DiffComponent::Unchanged(a.value, b.value),
+                lcs::DiffComponent::Deletion(d) => DiffComponent::Deletion(d.value)
+            }
+        }).collect();
+
+        return b;
+    }
+
+    let mut ret = Vec::new();
+    let mut last_index_a = 0;
+    let mut last_index_b = 0;
+
+    for (match_a, match_b) in lcs {
+        let subset_a = &a[last_index_a..match_a.index];
+        let subset_b = &b[last_index_b..match_b.index];
+        ret.extend(diff(subset_a, subset_b));
+
+        ret.push(DiffComponent::Unchanged(match_a.value, match_b.value));
+
+        last_index_a = match_a.index + 1;
+        last_index_b = match_b.index + 1;
+    }
+
+    let subset_a = &a[last_index_a..a.len()];
+    let subset_b = &b[last_index_b..b.len()];
+    ret.extend(diff(subset_a, subset_b));
+
+    ret
 }
 
 fn unique_elements<'a, T: Eq + Hash>(elems: &'a [T]) -> Vec<&'a T> {
@@ -49,10 +105,10 @@ fn unique_elements<'a, T: Eq + Hash>(elems: &'a [T]) -> Vec<&'a T> {
 
     for elem in elems {
         match counts.entry(elem) {
-            Entry::Occupied(mut e) => { 
+            Entry::Occupied(mut e) => {
                 *e.get_mut() = e.get() + 1;
             },
-            Entry::Vacant(e) => { 
+            Entry::Vacant(e) => {
                 e.insert(1);
             }
         }
@@ -64,13 +120,18 @@ fn unique_elements<'a, T: Eq + Hash>(elems: &'a [T]) -> Vec<&'a T> {
 }
 
 #[test]
-fn test_common_unique_elements() {
-    let a = &[1, 2, 3];
-    let b = &[1, 2, 3, 3, 4];
+fn test_patience_diff() {
+    let a: Vec<_> = "aax".chars().collect();
+    let b: Vec<_> = "xaa".chars().collect();
 
-    let expected = vec![(&a[0], &b[0]), (&a[1], &b[1])];
-    let actual = common_unique_elements(a, b);
-    assert_eq!(expected, actual);
+    let diff = patience_diff(&a, &b);
+    assert_eq!(diff, vec![
+        DiffComponent::Deletion(&'a'),
+        DiffComponent::Deletion(&'a'),
+        DiffComponent::Unchanged(&'x', &'x'),
+        DiffComponent::Insertion(&'a'),
+        DiffComponent::Insertion(&'a'),
+    ]);
 }
 
 #[test]
