@@ -31,51 +31,48 @@ pub enum DiffComponent<T> {
 
 pub fn patience_diff<'a, T>(a: &'a [T], b: &'a [T]) -> Vec<DiffComponent<&'a T>>
         where T: Eq + Hash + Debug {
-    // convert to indexed-lists
-    // run core algo on total list
-    // convert result into its proper type if necessary
-    let a: Vec<_> = a.into_iter()
-        .enumerate()
-        .map(|(i, val)| Indexed { index: i, value: val })
-        .collect();
-    let b: Vec<_> = b.into_iter()
-        .enumerate()
-        .map(|(i, val)| Indexed { index: i, value: val })
-        .collect();
-
-    diff(&a, &b)
-}
-
-fn diff<'a, 'b, T>(a: &'b [Indexed<&'a T>], b: &'b [Indexed<&'a T>]) -> Vec<DiffComponent<&'a T>>
-        where T: Eq + Hash + Debug {
     if a.len() == 0 && b.len() == 0 {
         return vec![];
     }
 
     if a.len() == 0 {
-        return b.iter().map(|elem| DiffComponent::Insertion(elem.value)).collect();
+        return b.iter().map(DiffComponent::Insertion).collect();
     }
 
     if b.len() == 0 {
-        return a.iter().map(|elem| DiffComponent::Deletion(elem.value)).collect();
+        return a.iter().map(DiffComponent::Deletion).collect();
     }
 
-    let uniq_a = unique_elements(&a);
-    let uniq_b = unique_elements(&b);
+    let indexed_a: Vec<_> = a.iter()
+        .enumerate()
+        .map(|(i, val)| Indexed { index: i, value: val })
+        .collect();
+    let indexed_b: Vec<_> = b.iter()
+        .enumerate()
+        .map(|(i, val)| Indexed { index: i, value: val })
+        .collect();
+
+    let uniq_a = unique_elements(&indexed_a);
+    let uniq_b = unique_elements(&indexed_b);
 
     let table = lcs::LcsTable::new(&uniq_a, &uniq_b);
     let lcs = table.longest_common_subsequence();
 
     if lcs.is_empty() {
-        let b: Vec<_> = table.diff().iter().map(|c| {
-            match *c {
-                lcs::DiffComponent::Insertion(i) => DiffComponent::Insertion(i.value),
-                lcs::DiffComponent::Unchanged(a, b) => DiffComponent::Unchanged(a.value, b.value),
-                lcs::DiffComponent::Deletion(d) => DiffComponent::Deletion(d.value)
+        let table = lcs::LcsTable::new(&indexed_a, &indexed_b);
+        return table.diff().into_iter().map(|c| {
+            match c {
+                lcs::DiffComponent::Insertion(elem_b) => {
+                    DiffComponent::Insertion(&b[elem_b.index])
+                },
+                lcs::DiffComponent::Unchanged(elem_a, elem_b) => {
+                    DiffComponent::Unchanged(&a[elem_a.index], &b[elem_b.index])
+                },
+                lcs::DiffComponent::Deletion(elem_a) => {
+                    DiffComponent::Deletion(&a[elem_a.index])
+                }
             }
         }).collect();
-
-        return b;
     }
 
     let mut ret = Vec::new();
@@ -85,7 +82,8 @@ fn diff<'a, 'b, T>(a: &'b [Indexed<&'a T>], b: &'b [Indexed<&'a T>]) -> Vec<Diff
     for (match_a, match_b) in lcs {
         let subset_a = &a[last_index_a..match_a.index];
         let subset_b = &b[last_index_b..match_b.index];
-        ret.extend(diff(subset_a, subset_b));
+
+        ret.extend(patience_diff(subset_a, subset_b));
 
         ret.push(DiffComponent::Unchanged(match_a.value, match_b.value));
 
@@ -95,7 +93,7 @@ fn diff<'a, 'b, T>(a: &'b [Indexed<&'a T>], b: &'b [Indexed<&'a T>]) -> Vec<Diff
 
     let subset_a = &a[last_index_a..a.len()];
     let subset_b = &b[last_index_b..b.len()];
-    ret.extend(diff(subset_a, subset_b));
+    ret.extend(patience_diff(subset_a, subset_b));
 
     ret
 }
@@ -132,6 +130,50 @@ fn test_patience_diff() {
         DiffComponent::Insertion(&'a'),
         DiffComponent::Insertion(&'a'),
     ]);
+
+    let a = vec![
+        "int func1() {",
+        "  return 1;",
+        "}",
+        "",
+        "int func2() {",
+        "  return 2;",
+        "}"
+    ];
+
+    let b = vec![
+        "int func1() {",
+        "  return 1;",
+        "}",
+        "",
+        "int func_new() {",
+        "  return 0;",
+        "}",
+        "",
+        "int func2() {",
+        "  return 2;",
+        "}"
+    ];
+
+    println!("");
+    for x in &a { println!("{}", x); }
+    println!("---");
+    for x in &b { println!("{}", x); }
+    println!("---");
+
+    let table = lcs::LcsTable::new(&a, &b);
+    for c in table.diff() {
+        println!("{:?}", c);
+    }
+
+    println!("---");
+    println!("patience");
+
+    for c in patience_diff(&a, &b) {
+        println!("{:?}", c);
+    }
+
+    panic!();
 }
 
 #[test]
