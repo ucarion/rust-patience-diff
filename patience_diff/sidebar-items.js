@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["DiffComponent",""]],"fn":[["patience_diff","Computes the patience diff betwen `a` and `b`. The `DiffComponent`s hold references to the elements in `a` and `b` they correspond to."]]});

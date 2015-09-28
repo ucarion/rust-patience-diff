@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `patience_diff` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, patience_diff">
+
+    <title>patience_diff - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <section class="sidebar">
+        
+        <p class='location'></p><script>window.sidebarCurrent = {name: 'patience_diff', ty: 'mod', relpath: '../'};</script>
+    </section>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content mod">
+<h1 class='fqn'><span class='in-band'>Crate <a class='mod' href=''>patience_diff</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-0' class='srclink' href='../src/patience_diff/lib.rs.html#1-285' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>This crate is for computing <em>patience diffs</em>, which require more effort to compute than normal
+diffs but are usually more human-readable.</p>
+
+<p>A diff describes the difference between two lists <code>a</code> and <code>b</code>; namely, the diff between <code>a</code> and
+<code>b</code> describes how to go from <code>a</code> to <code>b</code> by inserting, deleting, or keeping elements.</p>
+
+<h1 id="why-use-a-patience-diff?" class='section-header'><a
+                           href="#why-use-a-patience-diff?">Why use a patience diff?</a></h1>
+<p>Patience diffs are often more readable than ordinary, <a href="https://en.wikipedia.org/wiki/Longest_common_subsequence_problem">longest common
+subsequence</a>-based diffs. For example, if you go from:</p>
+
+<pre><code class="language-c">int func_1() {
+    return 1;
+}
+
+int func_2() {
+    return 2;
+}
+</code></pre>
+
+<p>To:</p>
+
+<pre><code class="language-c">int func_1() {
+    return 1;
+}
+
+int func_new() {
+    return 0;
+}
+
+int func_2() {
+    return 2;
+}
+</code></pre>
+
+<p>The LCS diff between these two sequences of lines is:</p>
+
+<pre><code class="language-c">  int func_1() {
+      return 1;
++ }
++
++ int func_new() {
++     return 0;
+  }
+
+  int func_2() {
+      return 2;
+  }
+</code></pre>
+
+<p>Their patience diff, on the other hand, is:</p>
+
+<pre><code class="language-c">  int func_1() {
+      return 1;
+  }
+
++ int func_new() {
++     return 0;
++ }
++
+  int func_2() {
+      return 2;
+  }
+</code></pre>
+
+<h2 id="how-a-patience-diff-is-computed" class='section-header'><a
+                           href="#how-a-patience-diff-is-computed">How a patience diff is computed</a></h2>
+<p>An &quot;ordinary&quot; diff is based on a longest common subsequence between <code>a</code> and <code>b</code>. A patience
+diff is very similar, but first finds the longest common subsequence between the <em>unique</em>
+elements of <code>a</code> and <code>b</code> to find &quot;unambiguous&quot; matches. Then, a patience diff is recursively
+computed for ranges between matched elements.</p>
+
+<p>You can read Bram Cohen, &quot;discoverer&quot; of patience diff, describe patience diff in his own words
+<a href="http://bramcohen.livejournal.com/73318.html">here</a>.</p>
+</div><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.DiffComponent.html'
+                               title='patience_diff::DiffComponent'>DiffComponent</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                </table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.patience_diff.html'
+                               title='patience_diff::patience_diff'>patience_diff</a></td>
+                        <td class='docblock short'>
+                             <p>Computes the patience diff betwen <code>a</code> and <code>b</code>. The <code>DiffComponent</code>s hold references to the
+elements in <code>a</code> and <code>b</code> they correspond to.</p>
+
+                        </td>
+                    </tr>
+                </table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <div id="help" class="hidden">
+        <div>
+            <div class="shortcuts">
+                <h1>Keyboard Shortcuts</h1>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h1>Search Tricks</h1>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>typedef</code> (or
+                    <code>tdef</code>).
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "patience_diff";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>
