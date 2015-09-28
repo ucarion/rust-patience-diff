@@ -1,8 +1,89 @@
+//! This crate is for computing *patience diffs*, which require more effort to compute than normal
+//! diffs but are usually more human-readable.
+//!
+//! A diff describes the difference between two lists `a` and `b`; namely, the diff between `a` and
+//! `b` describes how to go from `a` to `b` by inserting, deleting, or keeping elements.
+//!
+//! # Why use a patience diff?
+//!
+//! Patience diffs are often more readable than ordinary, [longest common
+//! subsequence][wiki-lcs]-based diffs. For example, if you go from:
+//!
+//! ```c
+//! int func_1() {
+//!     return 1;
+//! }
+//!
+//! int func_2() {
+//!     return 2;
+//! }
+//! ```
+//!
+//! To:
+//!
+//! ```c
+//! int func_1() {
+//!     return 1;
+//! }
+//!
+//! int func_new() {
+//!     return 0;
+//! }
+//!
+//! int func_2() {
+//!     return 2;
+//! }
+//! ```
+//!
+//! The LCS diff between these two sequences of lines is:
+//!
+//! ```c
+//!   int func_1() {
+//!       return 1;
+//! + }
+//! +
+//! + int func_new() {
+//! +     return 0;
+//!   }
+//!
+//!   int func_2() {
+//!       return 2;
+//!   }
+//! ```
+//!
+//! Their patience diff, on the other hand, is:
+//!
+//! ```c
+//!   int func_1() {
+//!       return 1;
+//!   }
+//!
+//! + int func_new() {
+//! +     return 0;
+//! + }
+//! +
+//!   int func_2() {
+//!       return 2;
+//!   }
+//! ```
+//!
+//! ## How a patience diff is computed
+//!
+//! An "ordinary" diff is based on a longest common subsequence between `a` and `b`. A patience
+//! diff is very similar, but first finds the longest common subsequence between the *unique*
+//! elements of `a` and `b` to find "unambiguous" matches. Then, a patience diff is recursively
+//! computed for ranges between matched elements.
+//!
+//! You can read Bram Cohen, "discoverer" of patience diff, describe patience diff in his own words
+//! [here][bram-blog].
+//!
+//! [wiki-lcs]: https://en.wikipedia.org/wiki/Longest_common_subsequence_problem
+//! [bram-blog]: http://bramcohen.livejournal.com/73318.html
+
 extern crate lcs;
 
 use std::collections::hash_map::{HashMap, Entry};
 use std::hash::{Hash, Hasher};
-use std::fmt::Debug;
 
 #[derive(Debug, Eq)]
 struct Indexed<T> {
@@ -29,8 +110,28 @@ pub enum DiffComponent<T> {
     Deletion(T)
 }
 
+/// Computes the patience diff betwen `a` and `b`. The `DiffComponent`s hold references to the
+/// elements in `a` and `b` they correspond to.
+///
+/// ```
+/// use patience_diff::DiffComponent;
+///
+/// let a: Vec<_> = "AaaxZ".chars().collect();
+/// let b: Vec<_> = "AxaaZ".chars().collect();
+///
+/// let diff = patience_diff::patience_diff(&a, &b);
+/// assert_eq!(diff, vec![
+///     DiffComponent::Unchanged(&'A', &'A'),
+///     DiffComponent::Deletion(&'a'),
+///     DiffComponent::Deletion(&'a'),
+///     DiffComponent::Unchanged(&'x', &'x'),
+///     DiffComponent::Insertion(&'a'),
+///     DiffComponent::Insertion(&'a'),
+///     DiffComponent::Unchanged(&'Z', &'Z')
+/// ]);
+/// ```
 pub fn patience_diff<'a, T>(a: &'a [T], b: &'a [T]) -> Vec<DiffComponent<&'a T>>
-        where T: Eq + Hash + Debug {
+        where T: Eq + Hash {
     if a.len() == 0 && b.len() == 0 {
         return vec![];
     }
